@@ -61,12 +61,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # elfutils supplies eu-strip, which flatpak-builder shells out to when
-      # splitting debuginfo. Hosted runners do not ship it.
+      # Two packages that --no-install-recommends would otherwise leave out, both
+      # needed by post-build steps rather than by the build itself:
+      #   elfutils        - eu-strip, which flatpak-builder uses to split debuginfo
+      #   librsvg2-common - the gdk-pixbuf SVG loader. Without it `appstreamcli
+      #                     compose` cannot rasterise the SVG app icon and fails
+      #                     with a bare "E: file-read-error".
       - name: Install flatpak tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils
+          sudo apt-get install -y --no-install-recommends \
+            flatpak flatpak-builder elfutils librsvg2-common
 
       - name: Add Flathub remote
         run: |

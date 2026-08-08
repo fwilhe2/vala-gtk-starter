@@ -112,6 +112,8 @@ com.example.Starter.json        Flatpak manifest
 Containerfile                   multi-stage container build
 .dockerignore                   keeps build dirs out of the container context
 .github/workflows/ci.yml        CI: build & test, Flatpak, container image
+CLAUDE.md                       notes for Claude Code sessions
+LICENSE                         GPL-3.0 text
 ```
 
 ## What the template demonstrates
@@ -196,6 +198,25 @@ already silenced in the top-level `meson.build`.
 ## Requirements
 
 Vala ≥ 0.56, Meson ≥ 1.0, GTK ≥ 4.12, libadwaita ≥ 1.5, GLib ≥ 2.72.
+
+## License
+
+GPL-3.0-or-later. The full text is in [`LICENSE`](LICENSE), and every source
+file carries an `SPDX-License-Identifier: GPL-3.0-or-later` header.
+
+If you relicense, three places have to move together or the app will advertise
+a licence it isn't under:
+
+| Place | Value |
+| --- | --- |
+| SPDX headers in `src/*.vala`, `src/config.vapi` | `GPL-3.0-or-later` |
+| `<project_license>` in `data/com.example.Starter.metainfo.xml.in` | `GPL-3.0-or-later` |
+| `license_type` in `src/application.vala` | `Gtk.License.GPL_3_0` |
+
+Note that GTK's `GPL_3_0` means "version 3 **or later**" — the version-3-only
+enum is the separate `GPL_3_0_ONLY`. The `<metadata_license>` in the AppStream
+file is `CC0-1.0`; that covers the metadata itself, not the code, and is the
+Flathub convention.
 
 ## Reference
 

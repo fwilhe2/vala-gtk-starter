@@ -49,7 +49,7 @@ jobs:
 
       - name: Upload Meson logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: meson-logs
           path: _build/meson-logs/
@@ -95,7 +95,7 @@ jobs:
             --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo
 
       - name: Upload bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: starter-flatpak
           path: starter.flatpak

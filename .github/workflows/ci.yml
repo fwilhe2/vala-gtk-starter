@@ -133,7 +133,7 @@ jobs:
       # The Containerfile runs `meson test` in its builder stage, so this job
       # gates on the test suite as well as on the image building.
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Containerfile

@@ -27,14 +27,18 @@
     // Set to true to let the extension fetch mesonlsp for meson.build editing.
     // Off by default so the container needs no network after it is built.
     "mesonbuild.downloadLanguageServer": false,
+    // The extension otherwise rewrites the two C_Cpp keys below on load, and
+    // resolves ${workspaceFolder} to an absolute path while doing it — which
+    // then only works on the machine that wrote it.
+    "mesonbuild.modifySettings": false,
 
     // Points IntelliSense at the C that valac generates. Editing Vala is the
     // language server's job; this only matters when you go look at the output.
-    "C_Cpp.default.compileCommands": "/workspaces/vala-gtk-starter/_build/compile_commands.json",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/_build/compile_commands.json",
+    "C_Cpp.default.configurationProvider": "mesonbuild.mesonbuild",
 
     "[vala]": {
         "editor.insertSpaces": true,
         "editor.tabSize": 4
-    },
-    "C_Cpp.default.configurationProvider": "mesonbuild.mesonbuild"
+    }
 }

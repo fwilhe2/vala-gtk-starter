@@ -32,6 +32,10 @@ podman build -f Containerfile -t starter .   # builder stage runs meson test —
 flatpak-builder --user --install --force-clean _flatpak com.example.Starter.json
 ```
 
+`.vscode/tasks.json` wraps the same Meson commands (`meson: build` is the default build
+task); `.vscode/launch.json` runs the binary under gdb. Both assume the build directory is
+`_build`.
+
 ## Architecture
 
 ### The app ID is a cross-cutting string
@@ -93,7 +97,8 @@ baseline, not regressions.
 
 - `meson devenv` is required to run uninstalled — it puts the compiled schema on the
   GSettings path. Running `_build/src/starter` directly aborts with
-  `Settings schema 'com.example.Starter' is not installed` (exit 133).
+  `Settings schema 'com.example.Starter' is not installed` (exit 133). The dev container
+  exports `GSETTINGS_SCHEMA_DIR` itself, so the bare binary does run there.
 - The app icon only resolves after a real install; uninstalled runs fall back.
 - `gnome.post_install()` skips schema compilation and icon caching when `DESTDIR` is set.
   The `Containerfile` compensates by running `glib-compile-schemas` and
@@ -101,9 +106,35 @@ baseline, not regressions.
 - The container image intentionally does not set `GTK_A11Y=none`. The accessibility-bus
   warning when running containerized is expected; silencing it would disable accessibility.
 
+## Dev container
+
+`.devcontainer/` is a *development* environment and shares nothing with `Containerfile`,
+which builds a runtime image. Four things there are not obvious:
+
+- **`_build` is a Docker volume**, mounted over `${containerWorkspaceFolder}/_build`. A
+  build tree configured on the host bakes in host absolute paths and breaks the moment
+  Meson re-runs under `/workspaces`, so host and container must not share one. Docker
+  creates the volume root-owned; `post-create.sh` chowns it before configuring.
+- **`vala-language-server` is built from source** in a first stage, because Debian does not
+  package it. Bumping `DEBIAN_VERSION` may require bumping `VLS_VERSION` with it — VLS
+  links against a specific `libvala-0.56`.
+- **The whole host `XDG_RUNTIME_DIR` is bind-mounted** at `/run/user/1000`, which is what
+  makes Wayland, the session bus and at-spi work. That also means `GApplication`
+  single-instance rules span host and container.
+- **`post-start.sh` chmods `/dev/dri/*`** because Docker re-creates those nodes on a
+  private tmpfs and drops the host ACL that granted the user access. It runs every start,
+  not just on create, since `/dev` is rebuilt each time. It cannot affect the host nodes.
+
+Debugging maps to `.vala` rather than generated C only because `buildtype=debug` makes
+Meson pass `--debug` to valac. Anything that changes the build type breaks that.
+
+The valac problem matcher in `.vscode/tasks.json` resolves paths relative to
+`${workspaceFolder}/_build`, because valac prints them relative to the directory ninja
+runs in.
+
 ## Renaming
 
 `README.md` carries the rename procedure: rename files whose *names* carry the ID, then
-`sed` file contents. It is verified end-to-end (Meson build, container build, and the CI
-workflow's manifest reference all survive it). If you change the layout, re-verify it — a
+`sed` file contents. It is verified end-to-end (Meson build, container build, the CI
+workflow's manifest reference and the `.vscode` / `.devcontainer` paths all survive it). If you change the layout, re-verify it — a
 missed file surfaces as a confusing Meson or runtime error rather than an obvious one.

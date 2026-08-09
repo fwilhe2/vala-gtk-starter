@@ -22,6 +22,66 @@ meson test -C _build      # validates the desktop, AppStream and GSettings files
 meson install -C _build   # installs into the configured prefix
 ```
 
+## Developing in VS Code
+
+`.devcontainer/` describes a container with the toolchain, `gdb` and
+`vala-language-server` in it; `.vscode/` wires that up to the editor's build,
+test, run and debug commands. You need the
+[Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+extension, Docker, and a Linux host running Wayland or X11 — the container draws
+on your display server, so the app opens a window on your desktop like any other.
+
+Open the folder, run **Dev Containers: Reopen in Container**, wait for the image
+to build, then press **F5**.
+
+| Command | What it does |
+| --- | --- |
+| **F5** | Build, then run under `gdb`. Breakpoints in `.vala` files work |
+| **Ctrl+Shift+B** | `meson compile -C _build` |
+| **Run Task → meson: test** | `meson test -C _build --print-errorlogs` |
+| **Run Task → meson: run** | Start the app without the debugger |
+
+Two launch configurations are provided. *Run and Debug Starter* is the ordinary
+one; *Debug Starter (break on GLib criticals)* sets `G_DEBUG=fatal-criticals`, so
+a `g_critical()` traps into the debugger with the stack that caused it instead of
+scrolling past in the console. That is the fastest way to find the origin of a
+GTK complaint.
+
+Breakpoints land in Vala rather than in generated C because Meson passes
+`--debug` to valac for `buildtype=debug`, which writes `#line` directives back to
+the `.vala` sources. Keep the build in `debug` or you will be stepping through
+`_build/src/starter.p/*.c`.
+
+Some details worth knowing before you change the setup:
+
+- **The build directory is a Docker volume**, not the host's `_build`. A build
+  tree configured on the host records host paths and breaks when Meson re-runs
+  from `/workspaces`, so the two are deliberately kept apart. Building on the
+  host and in the container at the same time is fine.
+- **`GSETTINGS_SCHEMA_DIR` is preset** in the container to `_build/data`, which
+  is the part of `meson devenv` the app actually needs. `_build/src/starter` runs
+  straight from a terminal there — outside the container it still aborts without
+  `meson devenv`.
+- **The host's `XDG_RUNTIME_DIR` is mounted whole**, which brings the Wayland
+  socket, the session bus, the accessibility bus and PipeWire with it. Sharing
+  the session bus means `GApplication` single-instance rules span host and
+  container: if the app is already running on your desktop, launching it in the
+  container re-presents that window and exits. Drop `DBUS_SESSION_BUS_ADDRESS`
+  from `containerEnv` for an isolated instance.
+- **`--device=/dev/dri` gives hardware GL.** Docker re-creates the device nodes
+  without the host's ACL, so `post-start.sh` widens their mode inside the
+  container — that touches the container's private `/dev`, not the host's. On a
+  machine with no `/dev/dri`, remove the `--device` line and Mesa falls back to
+  software rendering.
+- **GLib and GTK frames show as `???`** in backtraces, because Debian ships those
+  libraries without debug symbols. Adding `ENV DEBUGINFOD_URLS=https://debuginfod.debian.net`
+  to the dev `Dockerfile` and `"text": "set debuginfod enabled on"` to the
+  `setupCommands` in `launch.json` fetches them on demand, at the cost of a slow
+  first debug session.
+
+To use Podman instead of Docker, point the extension at it with
+`"dev.containers.dockerPath": "podman"` in your user settings.
+
 ### Flatpak
 
 ```sh
@@ -111,6 +171,16 @@ po/                             translation infrastructure
 com.example.Starter.json        Flatpak manifest
 Containerfile                   multi-stage container build
 .dockerignore                   keeps build dirs out of the container context
+.devcontainer/
+  devcontainer.json             dev container: display sockets, GPU, build volume
+  Dockerfile                    toolchain, gdb, vala-language-server
+  post-create.sh                first-run Meson configure
+  post-start.sh                 per-start /dev/dri permission fix
+.vscode/
+  tasks.json                    build, test, run; valac problem matcher
+  launch.json                   gdb launch configs
+  settings.json                 file associations, Meson build folder
+  extensions.json               recommended extensions
 .github/workflows/ci.yml        CI: build & test, Flatpak, container image
 CLAUDE.md                       notes for Claude Code sessions
 LICENSE                         GPL-3.0 text
